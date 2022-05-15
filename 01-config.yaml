@@ -76,27 +76,6 @@ spec:
       - name: repo
         type: git
   steps:
-    - name: buildkit
-      image: moby/buildkit:v0.10.3
-      securityContext:
-        privileged: true
-      env:
-        # needs resolve ownership of mounted git and docker config etc
-        # - name: BUILDKITD_FLAGS
-        #   value: --oci-worker-no-process-sandbox
-        - name: DOCKER_CONFIG
-          value: /tekton/home/.docker
-      command:
-        # https://github.com/moby/buildkit#daemonless
-        - buildctl-daemonless.sh
-        - build
-        - --frontend=dockerfile.v0
-        - --local=context=/workspace/repo
-        - --local=dockerfile=/workspace/repo
-        - --output=type=image,"name=docker.io/russtanevich/private:d001,docker.io/russtanevich/private:latest",push=true
-        - --export-cache=type=inline
-        - --import-cache=type=registry,ref=docker.io/russtanevich/private
-
     - name: kaniko-ensure-base-image-pulled
       image: gcr.io/kaniko-project/warmer:v1.8.1
       env:
@@ -124,6 +103,27 @@ spec:
         - --cache-repo=russtanevich/private
         - --cache=true
         - --cache-dir=/workspace/cache
+
+    - name: buildkit
+      image: moby/buildkit:v0.10.3
+      securityContext:
+        privileged: true
+      env:
+        # needs resolve ownership of mounted git and docker config etc
+        # - name: BUILDKITD_FLAGS
+        #   value: --oci-worker-no-process-sandbox
+        - name: DOCKER_CONFIG
+          value: /tekton/home/.docker
+      command:
+        # https://github.com/moby/buildkit#daemonless
+        - buildctl-daemonless.sh
+        - build
+        - --frontend=dockerfile.v0
+        - --local=context=/workspace/repo
+        - --local=dockerfile=/workspace/repo
+        - --output=type=image,"name=docker.io/russtanevich/private:d001,docker.io/russtanevich/private:latest",push=true
+        - --export-cache=type=inline
+        - --import-cache=type=registry,ref=docker.io/russtanevich/private
 
   workspaces:
     - name: cached-dir

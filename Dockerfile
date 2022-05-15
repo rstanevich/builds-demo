@@ -6,8 +6,7 @@ RUN apt install -y golang-go && go version
 
 RUN apt install -y libgeos-dev
 
-COPY main.go .
-COPY go.mod .
+COPY . .
 
 RUN go build -o app main.go
 
