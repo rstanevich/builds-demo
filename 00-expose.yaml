@@ -1,0 +1,14 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: tekton-dashboard-svc
+  namespace: tekton-pipelines
+spec:
+  selector:
+    app: tekton-dashboard
+  ports:
+  - protocol: TCP
+    port: 9097
+    nodePort: 32080
+  type: NodePort

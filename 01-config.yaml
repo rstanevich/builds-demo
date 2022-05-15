@@ -1,0 +1,162 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: build-bot
+secrets:
+  - name: basic-user-pass-docker
+  - name: basic-user-pass-git
+
+# ---
+# kind: PersistentVolumeClaim
+# apiVersion: v1
+# metadata:
+#   name: kaniko-cache-claim
+# spec:
+#   storageClassName: manual
+#   accessModes:
+#     - ReadOnlyMany
+#   resources:
+#     requests:
+#       storage: 8Gi
+# ---
+# kind: PersistentVolume
+# apiVersion: v1
+# metadata:
+#   name: kaniko-cache-volume
+#   labels:
+#     type: local
+# spec:
+#   storageClassName: manual
+#   capacity:
+#     storage: 10Gi
+#   accessModes:
+#     - ReadOnlyMany
+#   hostPath:
+#     path: "/tmp/kaniko-cache"
+
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: russtanevich-tekton-example
+spec:
+  type: git
+  params:
+    - name: url
+      value: https://github.com/rstanevich/builds-demo
+    - name: revision
+      value: main
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: test
+spec:
+  resources:
+    inputs:
+      - name: repo
+        type: git
+  steps:
+    - name: run-test
+      image: golang:1.16-alpine
+      workingDir: /workspace/repo/src
+      command: ["go"]
+      args: ["test"]
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-and-push
+spec:
+  resources:
+    inputs:
+      - name: repo
+        type: git
+  steps:
+    - name: buildkit
+      image: moby/buildkit:v0.10.3
+      securityContext:
+        privileged: true
+      env:
+        # needs resolve ownership of mounted git and docker config etc
+        # - name: BUILDKITD_FLAGS
+        #   value: --oci-worker-no-process-sandbox
+        - name: DOCKER_CONFIG
+          value: /tekton/home/.docker
+      command:
+        # https://github.com/moby/buildkit#daemonless
+        - buildctl-daemonless.sh
+        - build
+        - --frontend=dockerfile.v0
+        - --local=context=/workspace/repo/src
+        - --local=dockerfile=/workspace/repo/src
+        - --output=type=image,"name=docker.io/russtanevich/private:d001,docker.io/russtanevich/private:latest",push=true
+        - --export-cache=type=inline
+        - --import-cache=type=registry,ref=docker.io/russtanevich/private
+
+    - name: kaniko-ensure-base-image-pulled
+      image: gcr.io/kaniko-project/warmer:v1.8.1
+      env:
+        - name: DOCKER_CONFIG
+          value: /tekton/home/.docker
+      command:
+        - /kaniko/warmer
+        # https://github.com/GoogleContainerTools/kaniko/issues/1142
+        - --image=ubuntu:22.04
+        - --cache-dir=/workspace/cache
+
+    # https://github.com/GoogleContainerTools/kaniko/issues/875
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:v1.8.1
+      env:
+        - name: DOCKER_CONFIG
+          value: /tekton/home/.docker
+      command:
+        - /kaniko/executor
+        - --dockerfile=Dockerfile
+        - --context=/workspace/repo/src
+        # https://github.com/GoogleContainerTools/kaniko/issues/524#issuecomment-455780091
+        - --destination=russtanevich/private:k001
+        # https://github.com/GoogleContainerTools/kaniko#caching
+        - --cache-repo=russtanevich/private
+        - --cache=true
+        - --cache-dir=/workspace/cache
+
+  workspaces:
+    - name: cached-dir
+      optional: true
+      mountPath: /workspace/cache
+
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: test-build-push
+spec:
+  resources:
+    - name: repo
+      type: git
+  tasks:
+    # Run application tests
+    - name: test
+      taskRef:
+        name: test
+      resources:
+        inputs:
+          - name: repo
+            resource: repo
+
+    # Build docker image and push to registry
+    - name: build-and-push
+      taskRef:
+        name: build-and-push
+      runAfter:
+        - test
+      resources:
+        inputs:
+          - name: repo
+            resource: repo
