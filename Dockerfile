@@ -2,9 +2,9 @@ FROM ubuntu:22.04
 
 RUN apt update
 
-RUN apt install -y golang-go && go version
+RUN apt install -y golang-go
 
-RUN apt install -y libgeos-dev
+RUN apt install -y libgeos-dev && echo "DONE"
 
 COPY . .
 
