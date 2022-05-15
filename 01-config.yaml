@@ -61,7 +61,7 @@ spec:
   steps:
     - name: run-test
       image: golang:1.16-alpine
-      workingDir: /workspace/repo/src
+      workingDir: /workspace/repo
       command: ["go"]
       args: ["test"]
 
@@ -91,8 +91,8 @@ spec:
         - buildctl-daemonless.sh
         - build
         - --frontend=dockerfile.v0
-        - --local=context=/workspace/repo/src
-        - --local=dockerfile=/workspace/repo/src
+        - --local=context=/workspace/repo
+        - --local=dockerfile=/workspace/repo
         - --output=type=image,"name=docker.io/russtanevich/private:d001,docker.io/russtanevich/private:latest",push=true
         - --export-cache=type=inline
         - --import-cache=type=registry,ref=docker.io/russtanevich/private
@@ -117,7 +117,7 @@ spec:
       command:
         - /kaniko/executor
         - --dockerfile=Dockerfile
-        - --context=/workspace/repo/src
+        - --context=/workspace/repo
         # https://github.com/GoogleContainerTools/kaniko/issues/524#issuecomment-455780091
         - --destination=russtanevich/private:k001
         # https://github.com/GoogleContainerTools/kaniko#caching
