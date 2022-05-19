@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.04 as base
 
 RUN apt update
 
@@ -10,4 +10,9 @@ COPY . .
 
 RUN go build -o app main.go
 
+# CMD ["app"]
+
+
+FROM ubuntu:22.10
+COPY --from=base app app
 CMD ["app"]
