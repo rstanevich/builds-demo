@@ -39,7 +39,7 @@ secrets:
 apiVersion: tekton.dev/v1alpha1
 kind: PipelineResource
 metadata:
-  name: russtanevich-tekton-example
+  name: git-repo
 spec:
   type: git
   params:
@@ -69,15 +69,18 @@ spec:
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: build-and-push
+  name: buildah
 spec:
   resources:
     inputs:
       - name: repo
         type: git
+  workspaces:
+    - name: cached-dir
+      optional: true
+      mountPath: /workspace/cache
   steps:
-
-    - name: buildah
+    - name: build
       image: quay.io/buildah/stable:v1.23.3
       securityContext:
         privileged: true
@@ -87,10 +90,25 @@ spec:
       command:
         - sh
         - -c
-        - buildah build --layers -f /workspace/repo/Dockerfile -t russtanevich/private:b001 /workspace/repo/;
-          buildah push russtanevich/private:b001;
+        - buildah build --layers -f /workspace/repo/Dockerfile -t russtanevich/builds-demo-buildah:v1.0 /workspace/repo/;
+          buildah push russtanevich/builds-demo-buildah:v1.0;
 
-    - name: buildkit
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: buildkit-inline-registry-cache
+spec:
+  resources:
+    inputs:
+      - name: repo
+        type: git
+  workspaces:
+    - name: cached-dir
+      optional: true
+      mountPath: /workspace/cache
+  steps:
+    - name: build
       image: moby/buildkit:v0.10.3
       securityContext:
         privileged: true
@@ -107,11 +125,26 @@ spec:
         - --frontend=dockerfile.v0
         - --local=context=/workspace/repo
         - --local=dockerfile=/workspace/repo
-        - --output=type=image,"name=docker.io/russtanevich/private:d001,docker.io/russtanevich/private:latest",push=true
+        - --output=type=image,"name=docker.io/russtanevich/builds-demo-buildkit-inline-registry-cache:v1.0,docker.io/russtanevich/builds-demo-buildkit-inline-registry-cache:latest",push=true
         - --export-cache=type=inline
-        - --import-cache=type=registry,ref=docker.io/russtanevich/private:latest
+        - --import-cache=type=registry,ref=docker.io/russtanevich/builds-demo-buildkit-inline-registry-cache:latest
 
-    - name: kaniko-ensure-base-image-pulled
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko-remote-registry-cache
+spec:
+  resources:
+    inputs:
+      - name: repo
+        type: git
+  workspaces:
+    - name: cached-dir
+      optional: true
+      mountPath: /workspace/cache
+  steps:
+    - name: ensure-base-image-pulled
       image: gcr.io/kaniko-project/warmer:v1.8.1
       env:
         - name: DOCKER_CONFIG
@@ -123,7 +156,7 @@ spec:
         - --cache-dir=/workspace/cache
 
     # https://github.com/GoogleContainerTools/kaniko/issues/875
-    - name: kaniko
+    - name: build
       image: gcr.io/kaniko-project/executor:v1.8.1
       env:
         - name: DOCKER_CONFIG
@@ -133,23 +166,18 @@ spec:
         - --dockerfile=Dockerfile
         - --context=/workspace/repo
         # https://github.com/GoogleContainerTools/kaniko/issues/524#issuecomment-455780091
-        - --destination=russtanevich/private:k001
+        - --destination=russtanevich/builds-demo-kaniko-cache:v1.0
         # https://github.com/GoogleContainerTools/kaniko#caching
-        - --cache-repo=russtanevich/private
+        - --cache-repo=russtanevich/builds-demo-kaniko-cache
         - --cache=true
         - --cache-dir=/workspace/cache
-
-  workspaces:
-    - name: cached-dir
-      optional: true
-      mountPath: /workspace/cache
 
 
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: test-build-push
+  name: ci
 spec:
   resources:
     - name: repo
@@ -165,9 +193,29 @@ spec:
             resource: repo
 
     # Build docker image and push to registry
-    - name: build-and-push
+    - name: buildah
       taskRef:
-        name: build-and-push
+        name: buildah
+      runAfter:
+        - test
+      resources:
+        inputs:
+          - name: repo
+            resource: repo
+
+    - name: buildkit-inline-registry-cache
+      taskRef:
+        name: buildkit-inline-registry-cache
+      runAfter:
+        - test
+      resources:
+        inputs:
+          - name: repo
+            resource: repo
+
+    - name: kaniko-remote-registry-cache
+      taskRef:
+        name: kaniko-remote-registry-cache
       runAfter:
         - test
       resources:

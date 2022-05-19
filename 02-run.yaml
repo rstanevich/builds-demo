@@ -2,12 +2,12 @@
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  name: test-build-push-pr
+  name: ci-run
 spec:
   serviceAccountName: build-bot
   pipelineRef:
-    name: test-build-push
+    name: ci
   resources:
   - name: repo
     resourceRef:
-      name: russtanevich-tekton-example
+      name: git-repo
