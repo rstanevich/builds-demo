@@ -7,34 +7,6 @@ secrets:
   - name: basic-user-pass-docker
   - name: basic-user-pass-git
 
-# ---
-# kind: PersistentVolumeClaim
-# apiVersion: v1
-# metadata:
-#   name: kaniko-cache-claim
-# spec:
-#   storageClassName: manual
-#   accessModes:
-#     - ReadOnlyMany
-#   resources:
-#     requests:
-#       storage: 8Gi
-# ---
-# kind: PersistentVolume
-# apiVersion: v1
-# metadata:
-#   name: kaniko-cache-volume
-#   labels:
-#     type: local
-# spec:
-#   storageClassName: manual
-#   capacity:
-#     storage: 10Gi
-#   accessModes:
-#     - ReadOnlyMany
-#   hostPath:
-#     path: "/tmp/kaniko-cache"
-
 ---
 apiVersion: tekton.dev/v1alpha1
 kind: PipelineResource
@@ -66,6 +38,11 @@ spec:
       args: ["test"]
 
 ---
+
+#
+# BUILDAH
+#
+
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
@@ -94,6 +71,11 @@ spec:
           buildah push russtanevich/builds-demo-buildah:v1.0;
 
 ---
+
+#
+# BUILDKIT
+#
+
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
@@ -130,6 +112,11 @@ spec:
         - --import-cache=type=registry,ref=docker.io/russtanevich/builds-demo-buildkit-inline-registry-cache:latest
 
 ---
+
+#
+# KANIKO
+#
+
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
