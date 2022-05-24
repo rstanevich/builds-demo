@@ -36,6 +36,8 @@ spec:
       params:
       - name: url
         value: https://github.com/rstanevich/builds-demo
+      - name: revision
+        value: develop
 
     - name: buildah
       taskRef:
