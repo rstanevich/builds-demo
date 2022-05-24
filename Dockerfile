@@ -2,7 +2,7 @@ FROM ubuntu:22.04 as build_stage
 RUN apt update
 RUN apt install -y golang-go
 
-RUN go env -w GOPROXY=direct GOFLAGS="-insecure"
+ENV GOFLAGS="-insecure"
 
 # Fetch dependencies
 COPY go.mod go.mod
