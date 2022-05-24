@@ -4,6 +4,7 @@ install:
 	kubectl apply -f https://storage.googleapis.com/tekton-releases/dashboard/previous/v0.26.0/tekton-dashboard-release.yaml
 	kubectl apply -f https://raw.githubusercontent.com/tektoncd/catalog/main/task/git-clone/0.6/git-clone.yaml
 	kubectl apply -f 00-expose.yaml
+	kubectl apply -f 00-minio.yaml
 
 config:
 	kubectl delete -f 01-config.yaml || true
