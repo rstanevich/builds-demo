@@ -1,5 +1,5 @@
 FROM ubuntu:22.04 as build_stage
-RUN GOPROXY=direct GOFLAGS="-insecure"
+ENV GOPROXY=direct GOFLAGS="-insecure"
 
 # Large Layers
 RUN apt update
