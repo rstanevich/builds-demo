@@ -21,7 +21,7 @@ func main() {
 	http.HandleFunc("/", handletRequest)
 	fmt.Printf("Starting HTTP server on :%v", 8080)
 	if err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%v", 8080), nil); err != nil {
-		panic(fmt.Sprintf("ListenAndServeHTTP Error: %v", err))
+		panic(fmt.Sprintf("Listen and serve HTTP Error: %v", err))
 	}
 }
 
