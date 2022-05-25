@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:experimental
 FROM ubuntu:22.04 as build_stage
 # ENV GOPROXY=direct GOFLAGS="-insecure"
 
@@ -7,7 +8,7 @@ RUN apt install -y golang-go git x509-util
 
 # GO dependencies
 COPY go.mod go.sum ./
-RUN --mount=type=cache go mod download -x
+RUN go mod download -x
 
 # Compiling binary
 COPY . ./
