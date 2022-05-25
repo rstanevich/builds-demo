@@ -1,6 +1,4 @@
-# syntax=docker/dockerfile:experimental
 FROM ubuntu:22.04 as build_stage
-# ENV GOPROXY=direct GOFLAGS="-insecure"
 
 # Large Layers
 RUN apt update
