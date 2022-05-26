@@ -164,8 +164,8 @@ spec:
       value: /tekton/home/.docker
     command:
       - /kaniko/executor
+      - --context=.
       - --dockerfile=Dockerfile
-      - --context=/workspace/repo
       # https://github.com/GoogleContainerTools/kaniko/issues/524#issuecomment-455780091
       - --destination=russtanevich/builds-demo:kaniko-$(params.IMAGE_SHA)
       # https://github.com/GoogleContainerTools/kaniko#caching
