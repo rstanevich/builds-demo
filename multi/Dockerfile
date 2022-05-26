@@ -20,4 +20,4 @@ RUN sleep 20 && echo "py38" > py38
 FROM base AS final
 COPY --from=py36 py36 .
 COPY --from=py37 py37 .
-COPY --from=py38 py37 .
+COPY --from=py38 py38 .
