@@ -159,8 +159,6 @@ spec:
     image: gcr.io/kaniko-project/executor:v1.8.1
     workingDir: $(workspaces.source.path)
     env:
-    - name: HOME
-      value: /tekton/home/
     - name: DOCKER_CONFIG
       value: /tekton/home/.docker
     command:
@@ -173,4 +171,4 @@ spec:
       - --cache-repo=russtanevich/kaniko-cache
       - --cache=true
     securityContext:
-      privileged: true
+      runAsUser: 0

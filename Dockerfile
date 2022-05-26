@@ -6,6 +6,7 @@ RUN apt-get update
 RUN apt install -y golang-go git x509-util
 
 # GO dependencies
+# Can be cached if no changes the
 COPY go.mod go.sum ./
 RUN go mod download -x
 
