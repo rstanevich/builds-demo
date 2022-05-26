@@ -95,7 +95,7 @@ spec:
     - name: DOCKER_CONFIG
       value: /tekton/home/.docker
     script: |
-      buildah build -f ./Dockerfile.multi -t russtanevich/builds-demo:buildah-$(params.IMAGE_SHA) .
+      buildah build -f multi/Dockerfile -t russtanevich/builds-demo:buildah-$(params.IMAGE_SHA) .
       buildah push russtanevich/builds-demo:buildah-$(params.IMAGE_SHA)
     securityContext:
       privileged: true
@@ -135,7 +135,7 @@ spec:
     - --local
     - context=.
     - --local
-    - dockerfile=Dockerfile.multi
+    - dockerfile=multi
     - --output
     - type=image,name=docker.io/russtanevich/builds-demo:buildkit-$(params.IMAGE_SHA),push=true
     - --export-cache
@@ -143,32 +143,34 @@ spec:
     - --import-cache
     - type=s3,endpoint_url=http://minio.minio:9000,use_path_style=true,bucket=buildkit-cache,name=demo-project
 
----
-apiVersion: tekton.dev/v1beta1
-kind: Task
-metadata:
-  name: kaniko
-spec:
-  params:
-  - name: IMAGE_SHA
-  workspaces:
-  - name: source
-  steps:
-  # https://github.com/GoogleContainerTools/kaniko/issues/875
-  - name: build
-    image: gcr.io/kaniko-project/executor:v1.8.1
-    workingDir: $(workspaces.source.path)
-    env:
-    - name: DOCKER_CONFIG
-      value: /tekton/home/.docker
-    command:
-      - /kaniko/executor
-      - --context=.
-      - --dockerfile=Dockerfile.multi
-      # https://github.com/GoogleContainerTools/kaniko/issues/524#issuecomment-455780091
-      - --destination=russtanevich/builds-demo:kaniko-$(params.IMAGE_SHA)
-      # https://github.com/GoogleContainerTools/kaniko#caching
-      - --cache-repo=russtanevich/kaniko-cache
-      - --cache=true
-    securityContext:
-      runAsUser: 0
+
+# Issue with running as non root
+# ---
+# apiVersion: tekton.dev/v1beta1
+# kind: Task
+# metadata:
+#   name: kaniko
+# spec:
+#   params:
+#   - name: IMAGE_SHA
+#   workspaces:
+#   - name: source
+#   steps:
+#   # https://github.com/GoogleContainerTools/kaniko/issues/875
+#   - name: build
+#     image: gcr.io/kaniko-project/executor:v1.8.1
+#     workingDir: $(workspaces.source.path)
+#     env:
+#     - name: DOCKER_CONFIG
+#       value: /tekton/home/.docker
+#     command:
+#       - /kaniko/executor
+#       - --context=.
+#       - --dockerfile=Dockerfile.multi
+#       # https://github.com/GoogleContainerTools/kaniko/issues/524#issuecomment-455780091
+#       - --destination=russtanevich/builds-demo:kaniko-$(params.IMAGE_SHA)
+#       # https://github.com/GoogleContainerTools/kaniko#caching
+#       - --cache-repo=russtanevich/kaniko-cache
+#       - --cache=true
+#     securityContext:
+#       runAsUser: 0
