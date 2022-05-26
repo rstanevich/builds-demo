@@ -172,3 +172,5 @@ spec:
       # https://github.com/GoogleContainerTools/kaniko#caching
       - --cache-repo=russtanevich/kaniko-cache
       - --cache=true
+    securityContext:
+      privileged: true
