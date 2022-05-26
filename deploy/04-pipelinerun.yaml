@@ -95,7 +95,7 @@ spec:
     - name: DOCKER_CONFIG
       value: /tekton/home/.docker
     script: |
-      buildah build -f ./Dockerfile -t russtanevich/builds-demo:buildah-$(params.IMAGE_SHA) .
+      buildah build -f ./Dockerfile.multi -t russtanevich/builds-demo:buildah-$(params.IMAGE_SHA) .
       buildah push russtanevich/builds-demo:buildah-$(params.IMAGE_SHA)
     securityContext:
       privileged: true
@@ -135,7 +135,7 @@ spec:
     - --local
     - context=.
     - --local
-    - dockerfile=.
+    - dockerfile=Dockerfile.multi
     - --output
     - type=image,name=docker.io/russtanevich/builds-demo:buildkit-$(params.IMAGE_SHA),push=true
     - --export-cache
@@ -164,7 +164,7 @@ spec:
     command:
       - /kaniko/executor
       - --context=.
-      - --dockerfile=Dockerfile
+      - --dockerfile=Dockerfile.multi
       # https://github.com/GoogleContainerTools/kaniko/issues/524#issuecomment-455780091
       - --destination=russtanevich/builds-demo:kaniko-$(params.IMAGE_SHA)
       # https://github.com/GoogleContainerTools/kaniko#caching
