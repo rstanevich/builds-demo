@@ -2,7 +2,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  name: ci-pipeline-1
+  name: ci-pipeline
 spec:
   podTemplate:
     securityContext:
@@ -16,7 +16,7 @@ spec:
     volumeClaimTemplate:
       spec:
         accessModes:
-          - ReadWriteOnce
+        - ReadWriteOnce
         resources:
           requests:
             storage: 50Mi
@@ -39,21 +39,33 @@ spec:
       - name: revision
         value: develop
 
-    # - name: buildah
-    #   taskRef:
-    #     name: buildah
-    #   runAfter:
-    #   - fetch-repository
-    #   workspaces:
-    #   - name: source
-    #     workspace: shared-workspace
-    #   params:
-    #   - name: IMAGE_SHA
-    #     value: $(context.pipelineRun.name)
-
     - name: buildkit
       taskRef:
         name: buildkit
+      runAfter:
+      - fetch-repository
+      workspaces:
+      - name: source
+        workspace: shared-workspace
+      params:
+      - name: IMAGE_SHA
+        value: $(context.pipelineRun.name)
+
+    - name: buildah
+      taskRef:
+        name: buildah
+      runAfter:
+      - fetch-repository
+      workspaces:
+      - name: source
+        workspace: shared-workspace
+      params:
+      - name: IMAGE_SHA
+        value: $(context.pipelineRun.name)
+
+    - name: kaniko
+      taskRef:
+        name: kaniko
       runAfter:
       - fetch-repository
       workspaces:
@@ -83,8 +95,8 @@ spec:
     - name: DOCKER_CONFIG
       value: /tekton/home/.docker
     script: |
-      buildah build -f ./Dockerfile -t russtanevich/builds-demo-buildah:$(params.IMAGE_SHA) .
-      buildah push russtanevich/builds-demo-buildah:$(params.IMAGE_SHA);
+      buildah build -f ./Dockerfile -t russtanevich/builds-demo:buildah-$(params.IMAGE_SHA) .
+      buildah push russtanevich/builds-demo:buildah-$(params.IMAGE_SHA)
     securityContext:
       privileged: true
 
@@ -109,7 +121,6 @@ spec:
       value: /tekton/home/.docker
     - name: BUILDKITD_FLAGS
       value: --oci-worker-no-process-sandbox
-    
     - name: AWS_ACCESS_KEY_ID
       value: minio
     - name: AWS_SECRET_ACCESS_KEY
@@ -126,8 +137,35 @@ spec:
     - --local
     - dockerfile=.
     - --output
-    - type=image,name=docker.io/russtanevich/builds-demo-buildkit-inline-registry-cache:$(params.IMAGE_SHA),push=true
+    - type=image,name=docker.io/russtanevich/builds-demo:buildkit-$(params.IMAGE_SHA),push=true
     - --export-cache
     - type=s3,mode=max,endpoint_url=http://minio.minio:9000,use_path_style=true,bucket=buildkit-cache,name=demo-project
     - --import-cache
     - type=s3,endpoint_url=http://minio.minio:9000,use_path_style=true,bucket=buildkit-cache,name=demo-project
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko
+spec:
+  params:
+  - name: IMAGE_SHA
+  workspaces:
+  - name: source
+  steps:
+  # https://github.com/GoogleContainerTools/kaniko/issues/875
+  - name: build
+    image: gcr.io/kaniko-project/executor:v1.8.1
+    env:
+      - name: DOCKER_CONFIG
+        value: /tekton/home/.docker
+    command:
+      - /kaniko/executor
+      - --dockerfile=Dockerfile
+      - --context=/workspace/repo
+      # https://github.com/GoogleContainerTools/kaniko/issues/524#issuecomment-455780091
+      - --destination=russtanevich/builds-demo:kaniko-$(params.IMAGE_SHA)
+      # https://github.com/GoogleContainerTools/kaniko#caching
+      - --cache-repo=russtanevich/kaniko-cache
+      - --cache=true

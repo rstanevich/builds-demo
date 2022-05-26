@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-
-	_ "github.com/benesch/cgosymbolizer"
+	_ "github.com/golang/protobuf/proto"
 )
 
 type Response struct {
