@@ -12,3 +12,9 @@ install:
 
 run:
 	kubectl apply -f deploy/04-pipelinerun.yaml
+
+tools:
+# Tekton dashboard
+	open http://localhost:32080
+# Minio to expore cache: Creds "minio" - "minio123"
+	open http://localhost:32090

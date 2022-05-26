@@ -158,8 +158,10 @@ spec:
   - name: build
     image: gcr.io/kaniko-project/executor:v1.8.1
     env:
-      - name: DOCKER_CONFIG
-        value: /tekton/home/.docker
+    - name: HOME
+      value: /tekton/home/
+    - name: DOCKER_CONFIG
+      value: /tekton/home/.docker
     command:
       - /kaniko/executor
       - --dockerfile=Dockerfile
