@@ -1,18 +1,22 @@
-FROM ubuntu:22.04 as base
+FROM ubuntu:22.04 as build_stage
 
-RUN apt update
+# Large Layers
+# > 300 MB
+RUN apt-get update
+RUN apt install -y golang-go git x509-util
 
-RUN apt install -y golang-go
+# GO dependencies
+# Can be cached if no changes the
+COPY go.mod go.sum ./
+RUN go mod download -x
 
-RUN apt install -y libgeos-dev && echo "DONE"
-
-COPY . .
-
+# Compiling binary
+COPY . ./
 RUN go build -o app main.go
 
-# CMD ["app"]
+# Put binary into slim runtime image:
+# ~30 MB + binary
+FROM ubuntu:22.04 as run_stage
+COPY --from=build_stage ./app /app
+CMD ["/app"]
 
-
-FROM ubuntu:22.10
-COPY --from=base app app
-CMD ["app"]

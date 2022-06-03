@@ -1,0 +1,217 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: ci-pipeline
+spec:
+  podTemplate:
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000 
+      fsGroup: 1000
+  serviceAccountName: build-bot
+  workspaces:
+  - name: shared-workspace
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Mi
+  pipelineSpec:
+
+    workspaces:
+    - name: shared-workspace
+
+    tasks:
+
+    - name: fetch-repository
+      taskRef:
+        name: git-clone
+      workspaces:
+      - name: output
+        workspace: shared-workspace
+      params:
+      - name: url
+        value: https://github.com/rstanevich/builds-demo
+      - name: revision
+        value: develop
+
+    - name: buildkit
+      taskRef:
+        name: buildkit
+      runAfter:
+      - fetch-repository
+      workspaces:
+      - name: source
+        workspace: shared-workspace
+      params:
+      - name: IMAGE_SHA
+        value: $(context.pipelineRun.name)
+
+    - name: buildah
+      taskRef:
+        name: buildah
+      runAfter:
+      - fetch-repository
+      workspaces:
+      - name: source
+        workspace: shared-workspace
+      params:
+      - name: IMAGE_SHA
+        value: $(context.pipelineRun.name)
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: buildah
+spec:
+  params:
+  - name: IMAGE_SHA
+  workspaces:
+  - name: source
+  steps:
+  - name: build
+    image: quay.io/buildah/stable:v1.23.3
+    workingDir: $(workspaces.source.path)
+    env:
+    - name: HOME
+      value: /tekton/home/
+    - name: DOCKER_CONFIG
+      value: /tekton/home/.docker
+    script: |
+      buildah build -f Dockerfile -t russtanevich/builds-demo:buildah-$(params.IMAGE_SHA) .
+      buildah push russtanevich/builds-demo:buildah-$(params.IMAGE_SHA)
+    securityContext:
+      privileged: true
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: buildkit
+spec:
+  params:
+  - name: IMAGE_SHA
+  workspaces:
+  - name: source
+  steps:
+  - name: build
+    image: moby/buildkit:nightly-rootless # v0.10.3-rootless
+    workingDir: $(workspaces.source.path)
+    env:
+    - name: HOME
+      value: /tekton/home/
+    - name: DOCKER_CONFIG
+      value: /tekton/home/.docker
+    - name: BUILDKITD_FLAGS
+      value: --oci-worker-no-process-sandbox
+    - name: AWS_ACCESS_KEY_ID
+      value: minio
+    - name: AWS_SECRET_ACCESS_KEY
+      value: minio123
+    - name: AWS_REGION
+      value: us-east-1
+    command:
+    - buildctl-daemonless.sh
+    - build
+    - --progress=plain
+    - --frontend=dockerfile.v0 # There are alternative
+    - --local
+    - context=.
+    - --local
+    - dockerfile=.
+    - --output
+    - type=image,name=docker.io/russtanevich/builds-demo:buildkit-$(params.IMAGE_SHA),push=true
+    - --export-cache
+    - type=s3,mode=max,endpoint_url=http://minio.minio:9000,use_path_style=true,bucket=buildkit-cache,name=demo-project
+    - --import-cache
+    - type=s3,endpoint_url=http://minio.minio:9000,use_path_style=true,bucket=buildkit-cache,name=demo-project
+
+
+#
+# Issue with running as non root
+#
+
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: git-repo
+spec:
+  type: git
+  params:
+    - name: url
+      value: https://github.com/rstanevich/builds-demo
+    - name: revision
+      value: develop
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko
+spec:
+  resources:
+    inputs:
+    - name: repo
+      type: git
+  params:
+  - name: IMAGE_SHA
+  steps:
+  - name: build
+    image: gcr.io/kaniko-project/executor:v1.8.1
+    env:
+    - name: DOCKER_CONFIG
+      value: /tekton/home/.docker
+    command:
+      - /kaniko/executor
+      - --context=/workspace/repo
+      - --dockerfile=Dockerfile
+      # https://github.com/GoogleContainerTools/kaniko/issues/524#issuecomment-455780091
+      - --destination=russtanevich/builds-demo:kaniko-$(params.IMAGE_SHA)
+      # https://github.com/GoogleContainerTools/kaniko#caching
+      - --cache-repo=russtanevich/kaniko-cache
+      - --cache=true
+    # securityContext:
+    #   runAsUser: 0
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ci-kaniko
+spec:
+  resources:
+    - name: repo
+      type: git
+  tasks:
+    - name: kaniko
+      params:
+      - name: IMAGE_SHA
+        value: $(context.pipelineRun.name)
+      taskRef:
+        name: kaniko
+      resources:
+        inputs:
+          - name: repo
+            resource: repo
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: ci-kaniko
+spec:
+  serviceAccountName: build-bot
+  pipelineRef:
+    name: ci-kaniko
+  resources:
+  - name: repo
+    resourceRef:
+      name: git-repo
+
+# invalid input resources for task kaniko: Task's declared required resources are missing from the TaskRun: [repo]
