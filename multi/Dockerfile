@@ -18,6 +18,7 @@ FROM base AS py38
 RUN sleep 10 && echo "nstall py38 env" > py38
 
 FROM base AS final
+RUN apt install -y curl
 COPY --from=py36 py36 .
 COPY --from=py37 py37 .
 COPY --from=py38 py38 .
