@@ -122,15 +122,16 @@ spec:
     - --frontend=dockerfile.v0 # There are alternative
     - --local
     - context=.
+    - --opt
+    - filename=Dockerfile
     - --local
-    - dockerfile=.
+    - dockerfile=./multi/
     - --output
     - type=image,name=docker.io/russtanevich/builds-demo:buildkit-$(params.IMAGE_SHA),push=true
     - --export-cache
-    - type=s3,mode=max,endpoint_url=http://minio.minio:9000,use_path_style=true,bucket=buildkit-cache,name=demo-project
+    - type=registry,mode=max,ref=jfrogclitest.jfrog.io/default-docker-local/builds-demo:buildcache
     - --import-cache
-    - type=s3,endpoint_url=http://minio.minio:9000,use_path_style=true,bucket=buildkit-cache,name=demo-project
-
+    - type=registry,ref=jfrogclitest.jfrog.io/default-docker-local/builds-demo:buildcache
 
 #
 # Issue with running as non root
