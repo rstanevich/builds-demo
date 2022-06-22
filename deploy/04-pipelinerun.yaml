@@ -125,7 +125,7 @@ spec:
     - --opt
     - filename=Dockerfile
     - --local
-    - dockerfile=./multi/
+    - dockerfile=.
     - --output
     - type=image,name=docker.io/russtanevich/builds-demo:buildkit-$(params.IMAGE_SHA),push=true
     - --export-cache

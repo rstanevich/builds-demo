@@ -7,7 +7,7 @@ install:
 # Expose to localhost
 	kubectl apply -f deploy/01-expose.yaml
 # Cache for buildkit (s3 compatible)
-	kubectl apply -f deploy/02-minio.yaml
+# kubectl apply -f deploy/02-minio.yaml
 	kubectl apply -f deploy/03-secret.yaml || true
 
 run:
