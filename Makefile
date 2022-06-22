@@ -1,7 +1,7 @@
 
 install:
 # Install tekton 
-	kubectl apply -f https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.35.1/release.yaml
+	kubectl apply -f https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.34.1/release.yaml
 	kubectl apply -f https://storage.googleapis.com/tekton-releases/dashboard/previous/v0.26.0/tekton-dashboard-release.yaml
 	kubectl apply -f https://raw.githubusercontent.com/tektoncd/catalog/main/task/git-clone/0.6/git-clone.yaml
 # Expose to localhost

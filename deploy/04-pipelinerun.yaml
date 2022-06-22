@@ -1,70 +1,5 @@
 ---
 apiVersion: tekton.dev/v1beta1
-kind: PipelineRun
-metadata:
-  name: ci-pipeline
-spec:
-  podTemplate:
-    securityContext:
-      runAsNonRoot: true
-      runAsUser: 1000
-      runAsGroup: 1000 
-      fsGroup: 1000
-  serviceAccountName: build-bot
-  workspaces:
-  - name: shared-workspace
-    volumeClaimTemplate:
-      spec:
-        accessModes:
-        - ReadWriteOnce
-        resources:
-          requests:
-            storage: 50Mi
-  pipelineSpec:
-
-    workspaces:
-    - name: shared-workspace
-
-    tasks:
-
-    - name: fetch-repository
-      taskRef:
-        name: git-clone
-      workspaces:
-      - name: output
-        workspace: shared-workspace
-      params:
-      - name: url
-        value: https://github.com/rstanevich/builds-demo
-      - name: revision
-        value: develop
-
-    - name: buildkit
-      taskRef:
-        name: buildkit
-      runAfter:
-      - fetch-repository
-      workspaces:
-      - name: source
-        workspace: shared-workspace
-      params:
-      - name: IMAGE_SHA
-        value: $(context.pipelineRun.name)
-
-    - name: buildah
-      taskRef:
-        name: buildah
-      runAfter:
-      - fetch-repository
-      workspaces:
-      - name: source
-        workspace: shared-workspace
-      params:
-      - name: IMAGE_SHA
-        value: $(context.pipelineRun.name)
-
----
-apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: buildah
@@ -216,3 +151,69 @@ spec:
       name: git-repo
 
 # invalid input resources for task kaniko: Task's declared required resources are missing from the TaskRun: [repo]
+
+---
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: ci-pipeline
+spec:
+  podTemplate:
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000 
+      fsGroup: 1000
+  serviceAccountName: build-bot
+  workspaces:
+  - name: shared-workspace
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Mi
+  pipelineSpec:
+
+    workspaces:
+    - name: shared-workspace
+
+    tasks:
+
+    - name: fetch-repository
+      taskRef:
+        name: git-clone
+      workspaces:
+      - name: output
+        workspace: shared-workspace
+      params:
+      - name: url
+        value: https://github.com/rstanevich/builds-demo
+      - name: revision
+        value: develop
+
+    - name: buildkit
+      taskRef:
+        name: buildkit
+      runAfter:
+      - fetch-repository
+      workspaces:
+      - name: source
+        workspace: shared-workspace
+      params:
+      - name: IMAGE_SHA
+        value: $(context.pipelineRun.name)
+
+    - name: buildah
+      taskRef:
+        name: buildah
+      runAfter:
+      - fetch-repository
+      workspaces:
+      - name: source
+        workspace: shared-workspace
+      params:
+      - name: IMAGE_SHA
+        value: $(context.pipelineRun.name)
